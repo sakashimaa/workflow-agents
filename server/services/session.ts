@@ -14,7 +14,9 @@ interface CredentialRecord extends AuthUser {
 }
 
 function tokenHash(token: string) {
-  const secret = useRuntimeConfig().sessionSecret || 'workflow-development-session-secret'
+  const configured = useRuntimeConfig().sessionSecret
+  if (!import.meta.dev && (!configured || configured.length < 32)) throw createError({ statusCode: 500, statusMessage: 'NUXT_SESSION_SECRET должен содержать не менее 32 символов' })
+  const secret = configured || 'workflow-development-session-secret'
   return createHash('sha256').update(`${secret}:${token}`).digest('hex')
 }
 

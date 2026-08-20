@@ -12,3 +12,11 @@ test('business conflicts return meaningful status codes', async ({ request }) =>
   expect((await request.post('/api/requests/REQ-1039/transition', { data: { to: 'closed', reason: 'Нельзя', expectedVersion: 1 } })).status()).toBe(409)
   expect((await request.patch('/api/requests/REQ-1039', { data: { assigneeId: 'user-inactive', expectedVersion: 1 } })).status()).toBe(409)
 })
+
+test('security middleware rejects cross-site writes and exposes readiness', async ({ request }) => {
+  const page = await request.get('/')
+  expect(page.headers()['content-security-policy']).toContain("frame-ancestors 'none'")
+  expect(page.headers()['x-content-type-options']).toBe('nosniff')
+  expect((await request.post('/api/auth/login', { headers: { origin: 'https://attacker.invalid' }, data: { email: 'admin@workflow.local', password: 'Demo1234!' } })).status()).toBe(403)
+  expect((await request.get('/api/health')).status()).toBe(200)
+})
