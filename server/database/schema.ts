@@ -56,6 +56,7 @@ export const requests = pgTable('requests', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp('closed_at', { withTimezone: true }),
   archived: boolean('archived').notNull().default(false),
+  version: integer('version').notNull().default(1),
 }, table => [
   index('requests_status_idx').on(table.status),
   index('requests_priority_idx').on(table.priority),
@@ -79,6 +80,8 @@ export const requestEvents = pgTable('request_events', {
   kind: text('kind').notNull(),
   title: text('title').notNull(),
   detail: text('detail').notNull(),
+  fromStatus: requestStatusEnum('from_status'),
+  toStatus: requestStatusEnum('to_status'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, table => [index('request_events_request_idx').on(table.requestId)])
 

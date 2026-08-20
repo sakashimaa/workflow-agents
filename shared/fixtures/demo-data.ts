@@ -75,6 +75,7 @@ export const demoRequests: ServiceRequest[] = requestSource.map(([id, title, sta
   slaDueAt: `2026-08-${String(20 + index % 3).padStart(2, '0')}T${index % 3 === 0 ? '14:30' : '18:00'}:00.000Z`,
   closedAt: status === 'closed' ? '2026-08-19T12:00:00.000Z' : null,
   archived: false,
+  version: 1,
   comments: index === 0 ? [{ id: 'comment-1', requestId: id, authorId: 'user-operator', author: 'Анна Морозова', avatar: 'АМ', body: 'Проверяем конфигурацию и журналы сервиса. Вернусь с результатом в течение часа.', createdAt: '2026-08-20T10:42:00.000Z' }] : [],
   timeline: [
     { id: `${id}-event-1`, title: 'Заявка создана', detail: `${customer}, ${company}`, createdAt: '2026-08-18T09:20:00.000Z', kind: 'created' },

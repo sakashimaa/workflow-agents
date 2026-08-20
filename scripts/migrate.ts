@@ -8,17 +8,19 @@ const sql = postgres(databaseUrl, { max: 1 })
 
 try {
   await sql`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`
-  const name = '0000_initial'
-  const applied = await sql`SELECT name FROM schema_migrations WHERE name = ${name}`
-  if (!applied.length) {
-    const migration = await readFile(resolve('drizzle/0000_initial.sql'), 'utf8')
-    await sql.begin(async transaction => {
-      await transaction.unsafe(migration)
-      await transaction`INSERT INTO schema_migrations (name) VALUES (${name})`
-    })
-    console.log(`Applied ${name}`)
-  } else {
-    console.log(`${name} already applied`)
+  const migrations = ['0000_initial', '0001_request_version', '0002_transition_history']
+  for (const name of migrations) {
+    const applied = await sql`SELECT name FROM schema_migrations WHERE name = ${name}`
+    if (!applied.length) {
+      const migration = await readFile(resolve(`drizzle/${name}.sql`), 'utf8')
+      await sql.begin(async transaction => {
+        await transaction.unsafe(migration)
+        await transaction`INSERT INTO schema_migrations (name) VALUES (${name})`
+      })
+      console.log(`Applied ${name}`)
+    } else {
+      console.log(`${name} already applied`)
+    }
   }
 } finally {
   await sql.end()

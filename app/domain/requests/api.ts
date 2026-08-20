@@ -24,6 +24,7 @@ export function normalizeRequest(source: RequestApiDto): ServiceRequest {
     slaDueAt: source.slaDueAt ?? new Date(0).toISOString(),
     closedAt: source.closedAt ?? null,
     archived: source.archived ?? false,
+    version: source.version ?? 1,
     comments: source.comments ?? [],
     timeline: source.timeline ?? [],
   }

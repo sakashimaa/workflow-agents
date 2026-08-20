@@ -22,6 +22,9 @@ export interface RequestEvent {
   detail: string
   createdAt: string
   kind: 'created' | 'status' | 'comment' | 'assignment' | 'escalation'
+  actorId?: string | null
+  fromStatus?: RequestStatus | null
+  toStatus?: RequestStatus | null
 }
 
 export interface ServiceRequest {
@@ -42,6 +45,7 @@ export interface ServiceRequest {
   slaDueAt: string
   closedAt: string | null
   archived: boolean
+  version: number
   comments: RequestComment[]
   timeline: RequestEvent[]
 }
