@@ -29,6 +29,13 @@
         <section class="panel p-5 sm:p-6"><h2 class="text-lg font-black">Описание</h2><p class="mt-3 whitespace-pre-line leading-7 text-slate-600">{{ request.description }}</p></section>
 
         <section class="panel p-5 sm:p-6">
+          <div class="flex items-center justify-between gap-3"><div><h2 class="text-lg font-black">Вложения</h2><p class="mt-1 text-xs text-slate-400">JPG, PNG, PDF или TXT · до 5 МБ · максимум 5 файлов</p></div><span class="text-xs text-slate-400">{{ attachments.length }} / 5</span></div>
+          <ul v-if="attachments.length" class="mt-5 grid gap-3 sm:grid-cols-2"><li v-for="attachment in attachments" :key="attachment.id"><a :href="attachment.url" class="flex items-center gap-3 rounded-xl border border-slate-200 p-3 hover:border-indigo-300"><span class="grid size-9 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-700">↓</span><span class="min-w-0"><strong class="block truncate text-sm">{{ attachment.filename }}</strong><small class="text-slate-400">{{ formatSize(attachment.size) }}</small></span></a></li></ul>
+          <form class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="uploadAttachments"><div class="flex-1"><label for="attachments" class="label">Добавить файлы</label><input id="attachments" ref="fileInput" type="file" name="files" class="field py-2" accept="image/jpeg,image/png,application/pdf,text/plain" multiple :disabled="attachments.length >= 5" @change="selectAttachments"></div><button class="button-secondary" type="submit" :disabled="!selectedFiles.length || attachmentPending">{{ attachmentPending ? 'Загружаем…' : `Загрузить${selectedFiles.length ? ` · ${selectedFiles.length}` : ''}` }}</button></form>
+          <p v-if="attachmentError" class="mt-3 text-sm font-semibold text-rose-700" role="alert">{{ attachmentError }}</p>
+        </section>
+
+        <section class="panel p-5 sm:p-6">
           <div class="flex items-center justify-between"><h2 class="text-lg font-black">Обсуждение</h2><span class="text-xs text-slate-400">{{ comments.length }} комментарий</span></div>
           <div v-if="comments.length" class="mt-5 space-y-5">
             <article v-for="comment in comments" :key="comment.id" class="flex gap-3">
@@ -79,7 +86,7 @@
 <script setup lang="ts">
 import { priorityLabels, statusLabels } from '#shared/constants/requests'
 import { getAllowedTransitions } from '#shared/domain/request-transitions'
-import type { RequestComment, RequestPriority, RequestStatus, ServiceRequest, UserSummary } from '#shared/types/domain'
+import type { AttachmentSummary, RequestComment, RequestPriority, RequestStatus, ServiceRequest, UserSummary } from '#shared/types/domain'
 import { normalizeRequest, type RequestApiDto } from '~/domain/requests/api'
 
 const route = useRoute()
@@ -90,7 +97,9 @@ if (requestError.value?.statusCode === 404) throw createError({ statusCode: 404,
 const request = ref<ServiceRequest | null>(rawRequest.value ? normalizeRequest(rawRequest.value) : null)
 watch(rawRequest, value => { if (value) request.value = normalizeRequest(value) })
 const { data: userData } = await useFetch<UserSummary[]>('/api/users')
+const { data: attachmentData, refresh: refreshAttachments } = await useFetch<AttachmentSummary[]>(`/api/requests/${route.params.id}/attachments`)
 const agents = computed(() => userData.value?.filter(user => user.role === 'agent') ?? [])
+const attachments = computed(() => attachmentData.value ?? [])
 
 useSeoMeta({ title: () => request.value?.title ?? 'Заявка' })
 const comments = ref<RequestComment[]>(request.value ? [...request.value.comments] : [])
@@ -102,6 +111,10 @@ const transitionModalOpen = ref(false)
 const transitionTarget = ref<RequestStatus | null>(null)
 const transitionReason = ref('')
 const transitionResolution = ref('')
+const selectedFiles = ref<File[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+const attachmentPending = ref(false)
+const attachmentError = ref('')
 const mutationDemo = computed(() => ['delay', 'conflict', 'error'].includes(String(route.query.mutationDemo)) ? String(route.query.mutationDemo) : undefined)
 const details = computed(() => [
   { label: 'Клиент', value: request.value?.customer ?? '—' },
@@ -123,6 +136,17 @@ const transitionNeedsReason = computed(() => transitionTarget.value === 'waiting
 function formatDate(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
+
+function formatSize(value: number) { return value < 1024 * 1024 ? `${Math.ceil(value / 1024)} КБ` : `${(value / 1024 / 1024).toFixed(1)} МБ` }
+function selectAttachments(event: Event) { selectedFiles.value = Array.from((event.target as HTMLInputElement).files ?? []) }
+async function uploadAttachments() {
+  if (!selectedFiles.value.length || attachmentPending.value) return
+  attachmentPending.value = true; attachmentError.value = ''
+  const body = new FormData(); selectedFiles.value.forEach(file => body.append('files', file))
+  try { await $fetch(`/api/requests/${route.params.id}/attachments`, { method: 'POST', body }); await refreshAttachments(); selectedFiles.value = []; if (fileInput.value) fileInput.value.value = '' }
+  catch (error) { attachmentError.value = errorMessage(error, 'Не удалось загрузить файлы. Проверьте тип, размер и количество.') }
+  finally { attachmentPending.value = false }
 }
 
 async function updateReversibleField(field: 'priority', next: RequestPriority) {
