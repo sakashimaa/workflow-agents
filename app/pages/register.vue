@@ -7,7 +7,7 @@
       <div><label class="label" for="company">Компания</label><input id="company" v-model.trim="form.company" class="field" required minlength="2"></div>
       <div><label class="label" for="reg-password">Пароль</label><input id="reg-password" v-model="form.password" class="field" type="password" autocomplete="new-password" minlength="8" required></div>
       <p v-if="errorMessage" class="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert">{{ errorMessage }}</p>
-      <button class="button-primary w-full" :disabled="pending">{{ pending ? 'Создаём аккаунт…' : 'Зарегистрироваться' }}</button>
+      <button class="button-primary w-full" :disabled="pending || !hydrated">{{ pending ? 'Создаём аккаунт…' : 'Зарегистрироваться' }}</button>
     </form>
   </div>
 </template>
@@ -19,7 +19,9 @@ useSeoMeta({ title: 'Регистрация' })
 const auth = useAuthStore()
 const form = reactive({ name: '', email: '', company: '', password: '' })
 const pending = ref(false)
+const hydrated = ref(false)
 const errorMessage = ref('')
+onMounted(() => { hydrated.value = true })
 async function register() {
   if (pending.value) return
   pending.value = true

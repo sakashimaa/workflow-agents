@@ -10,7 +10,7 @@
           <div><div class="flex items-center justify-between"><label for="password" class="label">Пароль</label><a href="#" class="mb-1.5 text-xs font-semibold text-indigo-600">Забыли пароль?</a></div><input id="password" v-model="password" class="field" type="password" autocomplete="current-password" required minlength="8"></div>
           <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" class="size-4 rounded border-slate-300 text-indigo-600">Запомнить меня</label>
           <p v-if="errorMessage" class="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert">{{ errorMessage }}</p>
-          <button type="submit" class="button-primary w-full" :disabled="pending">{{ pending ? 'Входим…' : 'Войти' }}</button>
+          <button type="submit" class="button-primary w-full" :disabled="pending || !hydrated">{{ pending ? 'Входим…' : 'Войти' }}</button>
         </div>
         <div class="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Демо-аккаунты</p><div class="mt-3 grid grid-cols-2 gap-2"><button v-for="account in demoAccounts" :key="account.email" type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold hover:border-indigo-300 hover:text-indigo-700" @click="selectAccount(account.email)">{{ account.label }}</button></div><p class="mt-3 text-xs text-slate-500">Пароль для всех: <code>Demo1234!</code></p></div>
         <p class="mt-7 text-center text-sm text-slate-500">Нет аккаунта? <NuxtLink to="/register" class="font-bold text-indigo-600">Создать</NuxtLink></p>
@@ -30,10 +30,12 @@ const auth = useAuthStore()
 const email = ref('operator@workflow.local')
 const password = ref('Demo1234!')
 const pending = ref(false)
+const hydrated = ref(false)
 const errorMessage = ref('')
 const demoAccounts = [{ label: 'Client', email: 'client@workflow.local' }, { label: 'Operator', email: 'operator@workflow.local' }, { label: 'Agent', email: 'agent@workflow.local' }, { label: 'Admin', email: 'admin@workflow.local' }]
 
 function selectAccount(value: string) { email.value = value; password.value = 'Demo1234!' }
+onMounted(() => { hydrated.value = true })
 async function login() {
   if (pending.value) return
   pending.value = true
