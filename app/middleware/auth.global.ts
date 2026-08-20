@@ -5,6 +5,9 @@ const publicPaths = ['/', '/login', '/register', '/faq', '/help']
 export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
   const isPublic = publicPaths.includes(to.path) || to.path.startsWith('/articles')
+  const isAuthPage = to.path === '/login' || to.path === '/register'
+
+  if (isPublic && !isAuthPage && !auth.initialized) return
 
   if (!auth.initialized) {
     const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
@@ -17,5 +20,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (!isPublic && !auth.user) return navigateTo({ path: '/login', query: { redirect: to.fullPath } })
-  if ((to.path === '/login' || to.path === '/register') && auth.user) return navigateTo('/dashboard')
+  if (isAuthPage && auth.user) return navigateTo('/dashboard')
 })

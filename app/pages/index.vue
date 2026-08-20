@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'public' })
-useSeoMeta({ title: 'Сервисные заявки под контролем', description: 'WorkFlow — единое пространство для клиентских заявок, SLA и работы сервисной команды.' })
+usePublicSeo({ title: 'Сервисные заявки под контролем', description: 'WorkFlow — единое пространство для клиентских заявок, SLA и работы сервисной команды.', path: '/' })
 const metrics = [{ value: '24', label: 'в работе' }, { value: '7', label: 'новых' }, { value: '3', label: 'критичных' }]
 const preview = [
   { title: 'Ошибка синхронизации с CRM', time: '8 мин', color: 'bg-rose-500' },

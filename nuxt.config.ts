@@ -3,6 +3,18 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
+  routeRules: {
+    '/': { prerender: true },
+    '/faq': { prerender: true },
+    '/help': { swr: 3600 },
+    '/articles': { swr: 3600 },
+    '/articles/**': { swr: 3600 },
+    '/dashboard': { headers: { 'cache-control': 'private, no-store' } },
+    '/requests/**': { headers: { 'cache-control': 'private, no-store' } },
+  },
+  nitro: {
+    compressPublicAssets: true,
+  },
   app: {
     head: {
       htmlAttrs: { lang: 'ru' },

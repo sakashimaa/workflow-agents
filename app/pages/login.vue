@@ -25,6 +25,7 @@ import type { AuthUser } from '#shared/types/domain'
 
 definePageMeta({ layout: 'public' })
 useSeoMeta({ title: 'Вход', description: 'Вход в рабочее пространство WorkFlow.' })
+useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 const route = useRoute()
 const auth = useAuthStore()
 const email = ref('operator@workflow.local')

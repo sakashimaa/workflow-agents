@@ -16,6 +16,7 @@
 import type { AuthUser } from '#shared/types/domain'
 definePageMeta({ layout: 'public' })
 useSeoMeta({ title: 'Регистрация' })
+useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 const auth = useAuthStore()
 const form = reactive({ name: '', email: '', company: '', password: '' })
 const pending = ref(false)
