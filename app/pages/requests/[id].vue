@@ -53,9 +53,9 @@
         <section class="panel p-5">
           <h2 class="text-sm font-black uppercase tracking-wide text-slate-400">Управление</h2>
           <div class="mt-5 space-y-4">
-            <div><label for="request-status" class="label">Статус</label><select id="request-status" class="field" :value="request.status" :disabled="mutationPending !== null" @change="onStatusChange"><option v-for="(label, value) in statusLabels" :key="value" :value="value">{{ label }}</option></select></div>
-            <div><label for="request-priority-detail" class="label">Приоритет</label><select id="request-priority-detail" class="field" :value="request.priority" :disabled="mutationPending !== null" @change="onPriorityChange"><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select></div>
-            <div><label for="request-assignee" class="label">Исполнитель</label><select id="request-assignee" class="field" :value="request.assigneeId ?? ''" :disabled="mutationPending !== null" @change="onAssigneeChange"><option value="">Не назначен</option><option v-for="agent in agents" :key="agent.id" :value="agent.id" :disabled="agent.status === 'inactive'">{{ agent.name }}{{ agent.status === 'inactive' ? ' (неактивен)' : '' }}</option></select></div>
+            <div><label for="request-status" class="label">Следующий статус</label><select id="request-status" class="field" value="" :disabled="mutationPending !== null || availableTransitions.length === 0" @change="onTransitionSelected"><option value="">{{ availableTransitions.length ? 'Выберите переход' : 'Нет доступных переходов' }}</option><option v-for="value in availableTransitions" :key="value" :value="value">{{ statusLabels[value] }}</option></select></div>
+            <div v-if="canManage"><label for="request-priority-detail" class="label">Приоритет</label><select id="request-priority-detail" class="field" :value="request.priority" :disabled="mutationPending !== null" @change="onPriorityChange"><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select></div>
+            <div v-if="canManage"><label for="request-assignee" class="label">Исполнитель</label><select id="request-assignee" class="field" :value="request.assigneeId ?? ''" :disabled="mutationPending !== null" @change="onAssigneeChange"><option value="">Не назначен</option><option v-for="agent in agents" :key="agent.id" :value="agent.id" :disabled="agent.status === 'inactive'">{{ agent.name }}{{ agent.status === 'inactive' ? ' (неактивен)' : '' }}</option></select></div>
             <p v-if="mutationPending" class="text-xs font-semibold text-indigo-600" role="status">Сохраняем изменение…</p>
           </div>
         </section>
@@ -64,16 +64,27 @@
         <section class="panel p-5"><h2 class="text-lg font-black">История</h2><ol class="mt-5 space-y-0"><li v-for="(event, index) in request.timeline" :key="event.id" class="relative flex gap-3 pb-6 last:pb-0"><span v-if="index < request.timeline.length - 1" class="absolute left-[7px] top-4 h-full w-px bg-slate-200" /><span class="relative mt-1.5 size-3.5 shrink-0 rounded-full border-4 border-indigo-100 bg-indigo-600" /><div><p class="text-sm font-bold">{{ event.title }}</p><p class="mt-1 text-xs text-slate-500">{{ event.detail }}</p><time class="mt-1 block text-xs text-slate-400">{{ formatDate(event.createdAt) }}</time></div></li></ol></section>
       </aside>
     </div>
+    <AppModal :open="transitionModalOpen" title="Изменить статус" @close="closeTransitionModal">
+      <form class="space-y-4" @submit.prevent="submitTransition">
+        <div class="rounded-xl bg-slate-50 p-4 text-sm"><span class="text-slate-500">Переход:</span> <strong>{{ statusLabels[request.status] }} → {{ transitionTarget ? statusLabels[transitionTarget] : '' }}</strong></div>
+        <div v-if="transitionTarget === 'resolved'"><label for="transition-resolution" class="label">Результат решения</label><textarea id="transition-resolution" v-model.trim="transitionResolution" class="field min-h-28 py-3" required placeholder="Что сделано и какой результат получен" /></div>
+        <div v-else-if="transitionNeedsReason"><label for="transition-reason" class="label">Причина</label><textarea id="transition-reason" v-model.trim="transitionReason" class="field min-h-24 py-3" required placeholder="Укажите причину перехода" /></div>
+        <p v-else class="text-sm leading-6 text-slate-500">Подтвердите изменение статуса заявки.</p>
+        <div class="flex justify-end gap-3"><button type="button" class="button-secondary" @click="closeTransitionModal">Отмена</button><button type="submit" class="button-primary" :disabled="mutationPending !== null">Подтвердить</button></div>
+      </form>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { priorityLabels, statusLabels } from '#shared/constants/requests'
+import { getAllowedTransitions } from '#shared/domain/request-transitions'
 import type { RequestComment, RequestPriority, RequestStatus, ServiceRequest, UserSummary } from '#shared/types/domain'
 import { normalizeRequest, type RequestApiDto } from '~/domain/requests/api'
 
 const route = useRoute()
 const history = useRequestHistoryStore()
+const auth = useAuthStore()
 const { data: rawRequest, status: requestStatus, error: requestError, refresh } = await useFetch<RequestApiDto>(`/api/requests/${route.params.id}`)
 if (requestError.value?.statusCode === 404) throw createError({ statusCode: 404, statusMessage: 'Заявка не найдена' })
 const request = ref<ServiceRequest | null>(rawRequest.value ? normalizeRequest(rawRequest.value) : null)
@@ -88,6 +99,10 @@ const commentPending = ref(false)
 const commentError = ref('')
 const mutationPending = ref<'priority' | 'status' | 'assignee' | 'undo' | null>(null)
 const mutationError = ref('')
+const transitionModalOpen = ref(false)
+const transitionTarget = ref<RequestStatus | null>(null)
+const transitionReason = ref('')
+const transitionResolution = ref('')
 const mutationDemo = computed(() => ['delay', 'conflict', 'error'].includes(String(route.query.mutationDemo)) ? String(route.query.mutationDemo) : undefined)
 const details = computed(() => [
   { label: 'Клиент', value: request.value?.customer ?? '—' },
@@ -95,13 +110,23 @@ const details = computed(() => [
   { label: 'Категория', value: request.value?.category ?? '—' },
   { label: 'Срок SLA', value: request.value ? formatDate(request.value.slaDueAt) : '—' },
 ])
+const availableTransitions = computed(() => {
+  if (!request.value || !auth.user) return []
+  return getAllowedTransitions(request.value.status).filter((status) => {
+    if (auth.user?.role === 'client') return status === 'closed'
+    if (auth.user?.role === 'agent') return !['assigned', 'escalated', 'closed'].includes(status)
+    return true
+  })
+})
+const canManage = computed(() => ['operator', 'admin'].includes(auth.user?.role ?? ''))
+const transitionNeedsReason = computed(() => transitionTarget.value === 'waiting' || transitionTarget.value === 'escalated' || (transitionTarget.value === 'closed' && ['operator', 'admin'].includes(auth.user?.role ?? '')))
 
 function formatDate(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
-async function updateReversibleField(field: 'priority' | 'status', next: RequestPriority | RequestStatus) {
+async function updateReversibleField(field: 'priority', next: RequestPriority) {
   if (!request.value || mutationPending.value) return
   const previous = request.value[field]
   if (previous === next) return
@@ -110,7 +135,7 @@ async function updateReversibleField(field: 'priority' | 'status', next: Request
   mutationError.value = ''
   request.value = { ...request.value, [field]: next }
   try {
-    const updated = await $fetch<RequestApiDto>(`/api/requests/${requestId}`, { method: 'PATCH', query: { demo: mutationDemo.value }, body: { [field]: next } })
+    const updated = await $fetch<RequestApiDto>(`/api/requests/${requestId}`, { method: 'PATCH', query: { demo: mutationDemo.value }, body: { [field]: next, expectedVersion: request.value.version } })
     request.value = normalizeRequest(updated)
     history.remember({ requestId, field, previous, next, label: `${field === 'priority' ? 'Приоритет' : 'Статус'} изменён. Можно отменить последнее действие.` })
   } catch (error) {
@@ -125,8 +150,31 @@ async function onPriorityChange(event: Event) {
   await updateReversibleField('priority', (event.target as HTMLSelectElement).value as RequestPriority)
 }
 
-async function onStatusChange(event: Event) {
-  await updateReversibleField('status', (event.target as HTMLSelectElement).value as RequestStatus)
+function onTransitionSelected(event: Event) {
+  const target = (event.target as HTMLSelectElement).value as RequestStatus
+  if (!target) return
+  transitionTarget.value = target
+  transitionModalOpen.value = true
+  ;(event.target as HTMLSelectElement).value = ''
+}
+
+function closeTransitionModal() { transitionModalOpen.value = false; transitionTarget.value = null; transitionReason.value = ''; transitionResolution.value = '' }
+
+async function submitTransition() {
+  if (!request.value || !transitionTarget.value || mutationPending.value) return
+  const previous = request.value
+  const target = transitionTarget.value
+  mutationPending.value = 'status'
+  mutationError.value = ''
+  request.value = { ...request.value, status: target }
+  try {
+    request.value = normalizeRequest(await $fetch<RequestApiDto>(`/api/requests/${previous.id}/transition`, { method: 'POST', body: { to: target, reason: transitionReason.value || undefined, resolution: transitionResolution.value || undefined, expectedVersion: previous.version } }))
+    history.remember({ requestId: previous.id, field: 'status', previous: previous.status, next: target, label: 'Статус изменён. Можно отменить последнее действие.' })
+    closeTransitionModal()
+  } catch (error) {
+    request.value = previous
+    mutationError.value = errorMessage(error, 'Не удалось изменить статус. Значение восстановлено.')
+  } finally { mutationPending.value = null }
 }
 
 async function onAssigneeChange(event: Event) {
@@ -138,7 +186,7 @@ async function onAssigneeChange(event: Event) {
   mutationPending.value = 'assignee'
   mutationError.value = ''
   try {
-    request.value = normalizeRequest(await $fetch<RequestApiDto>(`/api/requests/${request.value.id}`, { method: 'PATCH', query: { demo: mutationDemo.value }, body: { assigneeId } }))
+    request.value = normalizeRequest(await $fetch<RequestApiDto>(`/api/requests/${request.value.id}`, { method: 'PATCH', query: { demo: mutationDemo.value }, body: { assigneeId, expectedVersion: previous.version } }))
   } catch (error) {
     request.value = previous
     mutationError.value = errorMessage(error, 'Не удалось назначить исполнителя.')
@@ -153,7 +201,9 @@ async function undoLastChange() {
   mutationPending.value = 'undo'
   mutationError.value = ''
   try {
-    request.value = normalizeRequest(await $fetch<RequestApiDto>(`/api/requests/${request.value.id}`, { method: 'PATCH', body: { [change.field]: change.previous } }))
+    request.value = change.field === 'status'
+      ? normalizeRequest(await $fetch<RequestApiDto>(`/api/requests/${request.value.id}/undo`, { method: 'POST', body: { expectedVersion: request.value.version } }))
+      : normalizeRequest(await $fetch<RequestApiDto>(`/api/requests/${request.value.id}`, { method: 'PATCH', body: { priority: change.previous, expectedVersion: request.value.version } }))
     history.clear()
   } catch (error) {
     mutationError.value = errorMessage(error, 'Не удалось отменить изменение.')

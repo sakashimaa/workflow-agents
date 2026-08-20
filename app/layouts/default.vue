@@ -3,7 +3,7 @@
     <aside class="hidden min-h-screen bg-[#17223b] px-4 py-6 text-white lg:fixed lg:inset-y-0 lg:block lg:w-[248px]">
       <div class="px-2"><AppLogo light /></div>
       <nav class="mt-9 space-y-1" aria-label="Основная навигация">
-        <NuxtLink v-for="item in navigation" :key="item.to" :to="item.to" class="nav-link">
+        <NuxtLink v-for="item in visibleNavigation" :key="item.to" :to="item.to" class="nav-link">
           <span aria-hidden="true">{{ item.icon }}</span><span>{{ item.label }}</span>
         </NuxtLink>
       </nav>
@@ -27,7 +27,7 @@
       </header>
       <main><slot /></main>
       <nav class="fixed inset-x-3 bottom-3 z-30 flex justify-around rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur lg:hidden" aria-label="Мобильная навигация">
-        <NuxtLink v-for="item in navigation.slice(0, 4)" :key="item.to" :to="item.to" class="mobile-nav-link"><span aria-hidden="true">{{ item.icon }}</span><span>{{ item.short }}</span></NuxtLink>
+        <NuxtLink v-for="item in visibleNavigation.slice(0, 4)" :key="item.to" :to="item.to" class="mobile-nav-link"><span aria-hidden="true">{{ item.icon }}</span><span>{{ item.short }}</span></NuxtLink>
       </nav>
     </div>
   </div>
@@ -35,15 +35,16 @@
 
 <script setup lang="ts">
 const navigation = [
-  { to: '/dashboard', label: 'Обзор', short: 'Обзор', icon: '⌂' },
-  { to: '/requests', label: 'Заявки', short: 'Заявки', icon: '▤' },
-  { to: '/tasks', label: 'Мои задачи', short: 'Задачи', icon: '✓' },
-  { to: '/customers', label: 'Клиенты', short: 'Клиенты', icon: '◉' },
-  { to: '/notifications', label: 'Уведомления', short: 'События', icon: '◔' },
-  { to: '/profile', label: 'Профиль', short: 'Профиль', icon: '♙' },
+  { to: '/dashboard', label: 'Обзор', short: 'Обзор', icon: '⌂', roles: ['client', 'operator', 'agent', 'admin'] },
+  { to: '/requests', label: 'Заявки', short: 'Заявки', icon: '▤', roles: ['client', 'operator', 'agent', 'admin'] },
+  { to: '/tasks', label: 'Мои задачи', short: 'Задачи', icon: '✓', roles: ['operator', 'agent', 'admin'] },
+  { to: '/customers', label: 'Клиенты', short: 'Клиенты', icon: '◉', roles: ['operator', 'admin'] },
+  { to: '/notifications', label: 'Уведомления', short: 'События', icon: '◔', roles: ['client', 'operator', 'agent', 'admin'] },
+  { to: '/profile', label: 'Профиль', short: 'Профиль', icon: '♙', roles: ['client', 'operator', 'agent', 'admin'] },
 ]
 const preferences = usePreferencesStore()
 const auth = useAuthStore()
+const visibleNavigation = computed(() => navigation.filter(item => item.roles.includes(auth.user?.role ?? 'client')))
 const initials = computed(() => auth.user?.name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() ?? 'WF')
 const roleLabel = computed(() => ({ client: 'Клиент', operator: 'Оператор', agent: 'Исполнитель', admin: 'Администратор' }[auth.user?.role ?? 'client']))
 async function logout() { await $fetch('/api/auth/logout', { method: 'POST' }); auth.clear(); await navigateTo('/login') }

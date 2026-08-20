@@ -1,18 +1,17 @@
 import { z } from 'zod'
+import { addRequestComment, canReadRequest, findRequest } from '../../../repositories/workflow'
+import { requireUser } from '../../../utils/auth'
 import { parseRequestBody } from '../../../utils/validated-body'
-import { demoStore } from '../../../utils/demo-store'
 
 const commentSchema = z.object({ body: z.string().trim().min(1).max(5000) })
 
 export default defineEventHandler(async (event) => {
-  const input = await parseRequestBody(event, commentSchema)
-  const request = demoStore.requests.find(item => item.id === getRouterParam(event, 'id'))
+  const user = await requireUser(event)
+  const request = await findRequest(getRouterParam(event, 'id') ?? '')
   if (!request) throw createError({ statusCode: 404, statusMessage: 'Заявка не найдена' })
-  const now = new Date().toISOString()
-  const comment = { id: crypto.randomUUID(), requestId: request.id, authorId: 'user-operator', author: 'Анна Морозова', avatar: 'АМ', body: input.body, createdAt: now }
-  request.comments.push(comment)
-  request.timeline.push({ id: crypto.randomUUID(), title: 'Добавлен комментарий', detail: comment.author, createdAt: now, kind: 'comment' })
-  request.updatedAt = now
+  if (!canReadRequest(user, request)) throw createError({ statusCode: 403, statusMessage: 'Нет доступа к этой заявке' })
+  const input = await parseRequestBody(event, commentSchema)
+  const comment = await addRequestComment(request, input.body, user)
   setResponseStatus(event, 201)
   return comment
 })

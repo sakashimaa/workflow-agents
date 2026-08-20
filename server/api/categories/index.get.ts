@@ -1,3 +1,4 @@
-import { demoStore } from '../../utils/demo-store'
+import { listCategories } from '../../repositories/workflow'
+import { requireUser } from '../../utils/auth'
 
-export default defineEventHandler(() => demoStore.categories)
+export default defineEventHandler(async event => { await requireUser(event); return listCategories() })

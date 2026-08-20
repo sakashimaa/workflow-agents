@@ -23,6 +23,7 @@
       <form class="space-y-4" @submit.prevent="createRequest">
         <div><label for="request-title" class="label">Тема</label><input id="request-title" v-model.trim="draftTitle" class="field" required maxlength="140" autofocus></div>
         <div><label for="request-description" class="label">Описание</label><textarea id="request-description" v-model.trim="draftDescription" class="field min-h-28 py-3" required minlength="10" /></div>
+        <div v-if="canSelectCustomer"><label for="request-customer" class="label">Клиент</label><select id="request-customer" v-model="draftCustomerId" class="field" required><option value="" disabled>Выберите клиента</option><option v-for="customer in customers" :key="customer.id" :value="customer.id">{{ customer.company }} · {{ customer.name }}</option></select></div>
         <div class="grid gap-4 sm:grid-cols-2"><div><label for="request-priority" class="label">Приоритет</label><select id="request-priority" v-model="draftPriority" class="field"><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select></div><div><label for="request-category" class="label">Категория</label><select id="request-category" v-model="draftCategoryId" class="field" required><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></div></div>
         <p v-if="createError" class="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert">{{ createError }}</p>
         <div class="flex justify-end gap-3 pt-2"><button type="button" class="button-secondary" :disabled="isCreating" @click="modalOpen = false">Отмена</button><button type="submit" class="button-primary" :disabled="isCreating">{{ isCreating ? 'Создаём…' : 'Создать' }}</button></div>
@@ -33,12 +34,13 @@
 
 <script setup lang="ts">
 import { priorityLabels, statusLabels } from '#shared/constants/requests'
-import { requestPriorities, requestStatuses, type CategorySummary, type PaginationMeta, type RequestPriority, type RequestStatus, type ServiceRequest } from '#shared/types/domain'
+import { requestPriorities, requestStatuses, type CategorySummary, type CustomerSummary, type PaginationMeta, type RequestPriority, type RequestStatus, type ServiceRequest } from '#shared/types/domain'
 import { normalizeRequest, type RequestListApiResponse } from '~/domain/requests/api'
 
 useSeoMeta({ title: 'Заявки' })
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const routeValue = (name: string) => typeof route.query[name] === 'string' ? route.query[name] : ''
 const search = ref(routeValue('q'))
 const debouncedSearch = useDebouncedValue(search)
@@ -51,6 +53,7 @@ const draftTitle = ref('')
 const draftDescription = ref('')
 const draftPriority = ref<RequestPriority>('normal')
 const draftCategoryId = ref('category-settings')
+const draftCustomerId = ref('')
 const isCreating = ref(false)
 const createError = ref('')
 
@@ -70,6 +73,11 @@ const { data, status: requestStatus, error: requestError, refresh } = await useF
 })
 const { data: categoryData } = await useFetch<CategorySummary[]>('/api/categories')
 const categories = computed(() => categoryData.value ?? [])
+const canSelectCustomer = computed(() => ['operator', 'admin'].includes(auth.user?.role ?? ''))
+const customerData = ref<CustomerSummary[]>([])
+if (canSelectCustomer.value) customerData.value = await useRequestFetch()<CustomerSummary[]>('/api/customers')
+const customers = computed(() => customerData.value)
+if (customers.value[0]) draftCustomerId.value = customers.value[0].id
 const requests = computed(() => data.value?.data ?? [])
 const meta = computed<PaginationMeta>(() => data.value?.meta ?? { page: page.value, pageSize: 6, total: 0, pageCount: 1 })
 
@@ -85,7 +93,7 @@ async function createRequest() {
   isCreating.value = true
   createError.value = ''
   try {
-    await $fetch<ServiceRequest>('/api/requests', { method: 'POST', body: { title: draftTitle.value, description: draftDescription.value, priority: draftPriority.value, categoryId: draftCategoryId.value } })
+    await $fetch<ServiceRequest>('/api/requests', { method: 'POST', body: { title: draftTitle.value, description: draftDescription.value, priority: draftPriority.value, categoryId: draftCategoryId.value, customerId: draftCustomerId.value || undefined } })
     modalOpen.value = false
     draftTitle.value = ''
     draftDescription.value = ''
