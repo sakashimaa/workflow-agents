@@ -10,6 +10,6 @@ export default defineEventHandler(async (event) => {
   const actor = await requireUser(event, ['admin'])
   const id = getRouterParam(event, 'id') ?? ''
   const input = await parseRequestBody(event, schema)
-  if (id === actor.id && input.status === 'inactive') throw createError({ statusCode: 409, statusMessage: 'Нельзя деактивировать собственную учётную запись' })
+  if (id === actor.id && (input.status === 'inactive' || input.role !== 'admin')) throw createError({ statusCode: 409, statusMessage: 'Нельзя отозвать собственный административный доступ' })
   return updateUserAdmin(id, input)
 })

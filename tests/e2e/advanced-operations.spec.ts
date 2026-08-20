@@ -8,6 +8,11 @@ test('admin APIs, SLA and protected attachments work end to end', async ({ reque
 
   const policy = await request.put('/api/admin/sla/normal', { data: { responseMinutes: 240, resolutionMinutes: 1440, isActive: true } })
   expect(policy.ok()).toBe(true)
+  const category = await request.post('/api/admin/categories', { data: { name: `E2E ${Date.now()}`, description: 'Категория из сквозного теста', isActive: true } })
+  expect(category.status()).toBe(201)
+  const categoryData = await category.json()
+  expect((await request.patch(`/api/admin/categories/${categoryData.id}`, { data: { ...categoryData, isActive: false } })).ok()).toBe(true)
+  expect((await request.patch('/api/admin/users/user-admin', { data: { role: 'operator', status: 'active' } })).status()).toBe(409)
 
   const created = await request.post('/api/requests', { data: { title: `Заявка с файлом ${Date.now()}`, description: 'Проверка защищённой загрузки и скачивания вложения.', priority: 'normal', customerId: 'customer-northstar', categoryId: 'category-documents' } })
   expect(created.status()).toBe(201)

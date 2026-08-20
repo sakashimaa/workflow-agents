@@ -116,6 +116,22 @@ export async function updateCategoryAdmin(id: string, input: Pick<CategorySummar
   return { id: String(rows[0].id), name: String(rows[0].name), description: String(rows[0].description), isActive: Boolean(rows[0].is_active) }
 }
 
+export async function createCategoryAdmin(input: Pick<CategorySummary, 'name' | 'description' | 'isActive'>): Promise<CategorySummary> {
+  const category: CategorySummary = { id: `category-${randomUUID()}`, ...input }
+  const database = getDatabase()
+  if (!database) {
+    if (demoStore.categories.some(item => item.name.toLocaleLowerCase('ru') === input.name.toLocaleLowerCase('ru'))) throw createError({ statusCode: 409, statusMessage: 'Категория с таким названием уже существует' })
+    demoStore.categories.push(category)
+    return category
+  }
+  try { await database`INSERT INTO categories (id, name, description, is_active) VALUES (${category.id}, ${category.name}, ${category.description}, ${category.isActive})` }
+  catch (error) {
+    if (typeof error === 'object' && error && 'code' in error && error.code === '23505') throw createError({ statusCode: 409, statusMessage: 'Категория с таким названием уже существует' })
+    throw error
+  }
+  return category
+}
+
 function emptyCounts<T extends string>(values: readonly T[]): Record<T, number> {
   return Object.fromEntries(values.map(value => [value, 0])) as Record<T, number>
 }

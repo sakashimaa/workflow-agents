@@ -34,7 +34,7 @@
 
 - `GET /api/admin/analytics`;
 - `GET /api/admin/users`, `PATCH /api/admin/users/:id`;
-- `GET /api/admin/categories`, `PATCH /api/admin/categories/:id`;
+- `GET|POST /api/admin/categories`, `PATCH /api/admin/categories/:id`;
 - `GET /api/admin/sla`, `PUT /api/admin/sla/:priority`.
 
 ## Коды ошибок
