@@ -1,0 +1,2 @@
+<template><div class="page-wrap pb-28 lg:pb-8"><h1 class="text-3xl font-black">Мои задачи</h1><p class="mt-2 text-slate-500">Заявки, назначенные вам.</p><div class="mt-6 space-y-3"><RequestCard v-for="request in tasks" :key="request.id" :request="request" /></div></div></template>
+<script setup lang="ts">import { mockRequests } from '~/data/requests'; useSeoMeta({ title: 'Мои задачи' }); const tasks = mockRequests.filter(item => item.assignee === 'Анна Морозова')</script>

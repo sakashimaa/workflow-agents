@@ -1,0 +1,12 @@
+.nuxt
+.output
+node_modules
+.data
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
+coverage
+*.log
+.DS_Store
