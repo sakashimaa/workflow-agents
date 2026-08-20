@@ -18,4 +18,11 @@ export default defineNuxtConfig({
     strict: true,
     typeCheck: true,
   },
+  runtimeConfig: {
+    databaseUrl: '',
+    sessionSecret: '',
+    public: {
+      siteUrl: 'http://localhost:3000',
+    },
+  },
 })
