@@ -22,9 +22,10 @@
     <AppModal :open="modalOpen" title="Новая заявка" @close="modalOpen = false">
       <form class="space-y-4" @submit.prevent="createRequest">
         <div><label for="request-title" class="label">Тема</label><input id="request-title" v-model.trim="draftTitle" class="field" required maxlength="140" autofocus></div>
-        <div><label for="request-description" class="label">Описание</label><textarea id="request-description" class="field min-h-28 py-3" required /></div>
-        <div><label for="request-priority" class="label">Приоритет</label><select id="request-priority" class="field"><option>Обычный</option><option>Высокий</option><option>Критический</option><option>Низкий</option></select></div>
-        <div class="flex justify-end gap-3 pt-2"><button type="button" class="button-secondary" @click="modalOpen = false">Отмена</button><button type="submit" class="button-primary">Создать</button></div>
+        <div><label for="request-description" class="label">Описание</label><textarea id="request-description" v-model.trim="draftDescription" class="field min-h-28 py-3" required minlength="10" /></div>
+        <div class="grid gap-4 sm:grid-cols-2"><div><label for="request-priority" class="label">Приоритет</label><select id="request-priority" v-model="draftPriority" class="field"><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select></div><div><label for="request-category" class="label">Категория</label><select id="request-category" v-model="draftCategoryId" class="field" required><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></div></div>
+        <p v-if="createError" class="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert">{{ createError }}</p>
+        <div class="flex justify-end gap-3 pt-2"><button type="button" class="button-secondary" :disabled="isCreating" @click="modalOpen = false">Отмена</button><button type="submit" class="button-primary" :disabled="isCreating">{{ isCreating ? 'Создаём…' : 'Создать' }}</button></div>
       </form>
     </AppModal>
   </div>
@@ -32,7 +33,7 @@
 
 <script setup lang="ts">
 import { priorityLabels, statusLabels } from '#shared/constants/requests'
-import { requestPriorities, requestStatuses, type PaginationMeta, type RequestPriority, type RequestStatus } from '#shared/types/domain'
+import { requestPriorities, requestStatuses, type CategorySummary, type PaginationMeta, type RequestPriority, type RequestStatus, type ServiceRequest } from '#shared/types/domain'
 import { normalizeRequest, type RequestListApiResponse } from '~/domain/requests/api'
 
 useSeoMeta({ title: 'Заявки' })
@@ -47,6 +48,11 @@ const sort = ref<'updated' | 'priority'>(routeValue('sort') === 'priority' ? 'pr
 const page = ref(Math.max(1, Number.parseInt(routeValue('page')) || 1))
 const modalOpen = ref(route.query.create === '1')
 const draftTitle = ref('')
+const draftDescription = ref('')
+const draftPriority = ref<RequestPriority>('normal')
+const draftCategoryId = ref('category-settings')
+const isCreating = ref(false)
+const createError = ref('')
 
 const apiQuery = computed(() => ({
   q: debouncedSearch.value || undefined,
@@ -62,6 +68,8 @@ const { data, status: requestStatus, error: requestError, refresh } = await useF
   query: apiQuery,
   transform: (response: RequestListApiResponse) => ({ ...response, data: response.data.map(normalizeRequest) }),
 })
+const { data: categoryData } = await useFetch<CategorySummary[]>('/api/categories')
+const categories = computed(() => categoryData.value ?? [])
 const requests = computed(() => data.value?.data ?? [])
 const meta = computed<PaginationMeta>(() => data.value?.meta ?? { page: page.value, pageSize: 6, total: 0, pageCount: 1 })
 
@@ -72,5 +80,21 @@ watch(apiQuery, (query) => {
 })
 
 function resetFilters() { search.value = ''; status.value = ''; priority.value = ''; page.value = 1 }
-function createRequest() { modalOpen.value = false; draftTitle.value = '' }
+async function createRequest() {
+  if (isCreating.value) return
+  isCreating.value = true
+  createError.value = ''
+  try {
+    await $fetch<ServiceRequest>('/api/requests', { method: 'POST', body: { title: draftTitle.value, description: draftDescription.value, priority: draftPriority.value, categoryId: draftCategoryId.value } })
+    modalOpen.value = false
+    draftTitle.value = ''
+    draftDescription.value = ''
+    draftPriority.value = 'normal'
+    await refresh()
+  } catch (error) {
+    createError.value = error instanceof Error ? error.message : 'Не удалось создать заявку'
+  } finally {
+    isCreating.value = false
+  }
+}
 </script>

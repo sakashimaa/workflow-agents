@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[248px_1fr]">
+  <div class="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[248px_1fr]" :class="[`density-${preferences.density}`, { 'reduce-motion': preferences.reduceMotion }]">
     <aside class="hidden min-h-screen bg-[#17223b] px-4 py-6 text-white lg:fixed lg:inset-y-0 lg:block lg:w-[248px]">
       <div class="px-2"><AppLogo light /></div>
       <nav class="mt-9 space-y-1" aria-label="Основная навигация">
@@ -41,6 +41,7 @@ const navigation = [
   { to: '/notifications', label: 'Уведомления', short: 'События', icon: '◔' },
   { to: '/profile', label: 'Профиль', short: 'Профиль', icon: '♙' },
 ]
+const preferences = usePreferencesStore()
 </script>
 
 <style scoped>
@@ -48,4 +49,7 @@ const navigation = [
 .nav-link.router-link-active { @apply bg-indigo-500 text-white shadow-lg shadow-indigo-950/20; }
 .mobile-nav-link { @apply flex min-w-14 flex-col items-center gap-0.5 rounded-xl px-2 py-1 text-[10px] font-semibold text-slate-500; }
 .mobile-nav-link.router-link-active { @apply bg-indigo-50 text-indigo-700; }
+.density-compact :deep(.panel) { @apply rounded-xl; }
+.density-compact :deep(.panel.p-5), .density-compact :deep(.panel.sm\:p-5) { padding: 0.85rem; }
+.reduce-motion :deep(*) { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 </style>
