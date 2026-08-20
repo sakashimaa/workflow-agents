@@ -1,7 +1,8 @@
 import { validateRequestTransition } from '#shared/domain/request-transitions'
 import { requestStatuses } from '#shared/types/domain'
 import { z } from 'zod'
-import { canReadRequest, findRequest, transitionRequest } from '../../../repositories/workflow'
+import { canReadRequest } from '#shared/domain/request-access'
+import { findRequest, transitionRequest } from '../../../repositories/workflow'
 import { requireUser } from '../../../utils/auth'
 import { parseRequestBody } from '../../../utils/validated-body'
 

@@ -1,4 +1,5 @@
-import { canReadRequest, findRequest } from '../../repositories/workflow'
+import { canReadRequest } from '#shared/domain/request-access'
+import { findRequest } from '../../repositories/workflow'
 import { requireUser } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {

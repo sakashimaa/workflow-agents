@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { addRequestComment, canReadRequest, findRequest } from '../../../repositories/workflow'
+import { canReadRequest } from '#shared/domain/request-access'
+import { addRequestComment, findRequest } from '../../../repositories/workflow'
 import { requireUser } from '../../../utils/auth'
 import { parseRequestBody } from '../../../utils/validated-body'
 

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { priorityRank } from '#shared/constants/requests'
+import { canReadRequest } from '#shared/domain/request-access'
 import { hasVersionConflict } from '#shared/domain/version'
 import type { AuthUser, CategorySummary, CustomerSummary, PaginatedResponse, RequestComment, RequestPriority, RequestStatus, ServiceRequest, UserSummary } from '#shared/types/domain'
 import { getDatabase } from '../database/client'
@@ -70,16 +71,6 @@ function mapRequest(row: DatabaseRow, comments: RequestComment[] = [], timeline:
   }
 }
 
-function visibleTo(user: AuthUser, request: ServiceRequest) {
-  if (user.role === 'client') return Boolean(user.customerId && request.customerId === user.customerId)
-  if (user.role === 'agent') return request.assigneeId === user.id
-  return true
-}
-
-export function canReadRequest(user: AuthUser, request: ServiceRequest) {
-  return visibleTo(user, request)
-}
-
 async function databaseRequests(): Promise<ServiceRequest[]> {
   const database = getDatabase()
   if (!database) return demoStore.requests
@@ -96,7 +87,7 @@ async function databaseRequests(): Promise<ServiceRequest[]> {
 }
 
 export async function listRequests(query: RequestListQuery, user: AuthUser): Promise<PaginatedResponse<ServiceRequest>> {
-  let filtered = query.empty ? [] : (await databaseRequests()).filter(request => visibleTo(user, request) && !request.archived)
+  let filtered = query.empty ? [] : (await databaseRequests()).filter(request => canReadRequest(user, request) && !request.archived)
   if (query.q) {
     const search = query.q.toLocaleLowerCase('ru')
     filtered = filtered.filter(request => `${request.id} ${request.title} ${request.customer} ${request.customerCompany}`.toLocaleLowerCase('ru').includes(search))

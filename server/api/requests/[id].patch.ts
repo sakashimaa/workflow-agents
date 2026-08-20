@@ -1,6 +1,7 @@
 import { requestPriorities } from '#shared/types/domain'
 import { z } from 'zod'
-import { canReadRequest, findRequest, updateRequest } from '../../repositories/workflow'
+import { canReadRequest } from '#shared/domain/request-access'
+import { findRequest, updateRequest } from '../../repositories/workflow'
 import { requireUser } from '../../utils/auth'
 import { parseRequestBody } from '../../utils/validated-body'
 
