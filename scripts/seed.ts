@@ -13,8 +13,7 @@ try {
       await transaction`INSERT INTO customers (id, name, email, phone, company, created_at) VALUES (${customer.id}, ${customer.name}, ${customer.email}, ${customer.phone}, ${customer.company}, ${customer.createdAt}) ON CONFLICT (id) DO UPDATE SET name = excluded.name, email = excluded.email, phone = excluded.phone, company = excluded.company`
     }
     for (const user of demoUsers) {
-      const customerId = user.role === 'client' ? 'customer-northstar' : null
-      await transaction`INSERT INTO users (id, name, email, password_hash, role, status, customer_id) VALUES (${user.id}, ${user.name}, ${user.email}, ${passwordHash}, ${user.role}, ${user.status}, ${customerId}) ON CONFLICT (id) DO UPDATE SET name = excluded.name, email = excluded.email, password_hash = excluded.password_hash, role = excluded.role, status = excluded.status, customer_id = excluded.customer_id`
+      await transaction`INSERT INTO users (id, name, email, password_hash, role, status, customer_id) VALUES (${user.id}, ${user.name}, ${user.email}, ${passwordHash}, ${user.role}, ${user.status}, ${user.customerId}) ON CONFLICT (id) DO UPDATE SET name = excluded.name, email = excluded.email, password_hash = excluded.password_hash, role = excluded.role, status = excluded.status, customer_id = excluded.customer_id`
     }
     for (const category of demoCategories) {
       await transaction`INSERT INTO categories (id, name, description, is_active) VALUES (${category.id}, ${category.name}, ${category.description}, ${category.isActive}) ON CONFLICT (id) DO UPDATE SET name = excluded.name, description = excluded.description, is_active = excluded.is_active`

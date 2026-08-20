@@ -52,7 +52,10 @@ export interface UserSummary {
   email: string
   role: UserRole
   status: 'active' | 'inactive'
+  customerId: string | null
 }
+
+export type AuthUser = UserSummary
 
 export interface CustomerSummary {
   id: string

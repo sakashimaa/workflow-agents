@@ -9,8 +9,9 @@
       </nav>
       <div class="absolute inset-x-4 bottom-5 rounded-2xl bg-white/10 p-3">
         <div class="flex items-center gap-3">
-          <div class="grid size-9 place-items-center rounded-full bg-indigo-400 text-xs font-extrabold">АМ</div>
-          <div class="min-w-0"><p class="truncate text-sm font-bold">Анна Морозова</p><p class="text-xs text-slate-400">Оператор</p></div>
+          <div class="grid size-9 place-items-center rounded-full bg-indigo-400 text-xs font-extrabold">{{ initials }}</div>
+          <div class="min-w-0 flex-1"><p class="truncate text-sm font-bold">{{ auth.user?.name }}</p><p class="text-xs text-slate-400">{{ roleLabel }}</p></div>
+          <button type="button" class="grid size-8 place-items-center rounded-lg text-slate-300 hover:bg-white/10 hover:text-white" aria-label="Выйти" @click="logout">↪</button>
         </div>
       </div>
     </aside>
@@ -21,7 +22,7 @@
         <p class="hidden text-sm font-semibold text-slate-500 lg:block">Центр сервисных обращений</p>
         <div class="flex items-center gap-2">
           <NuxtLink to="/notifications" class="grid size-10 place-items-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label="Уведомления">◔</NuxtLink>
-          <NuxtLink to="/profile" class="grid size-10 place-items-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-700" aria-label="Профиль Анны Морозовой">АМ</NuxtLink>
+          <NuxtLink to="/profile" class="grid size-10 place-items-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-700" :aria-label="`Профиль ${auth.user?.name ?? ''}`">{{ initials }}</NuxtLink>
         </div>
       </header>
       <main><slot /></main>
@@ -42,6 +43,10 @@ const navigation = [
   { to: '/profile', label: 'Профиль', short: 'Профиль', icon: '♙' },
 ]
 const preferences = usePreferencesStore()
+const auth = useAuthStore()
+const initials = computed(() => auth.user?.name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() ?? 'WF')
+const roleLabel = computed(() => ({ client: 'Клиент', operator: 'Оператор', agent: 'Исполнитель', admin: 'Администратор' }[auth.user?.role ?? 'client']))
+async function logout() { await $fetch('/api/auth/logout', { method: 'POST' }); auth.clear(); await navigateTo('/login') }
 </script>
 
 <style scoped>

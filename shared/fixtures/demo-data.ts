@@ -1,12 +1,12 @@
 import type { CategorySummary, CustomerSummary, ServiceRequest, UserSummary } from '../types/domain'
 
 export const demoUsers: UserSummary[] = [
-  { id: 'user-client', name: 'Ирина Волкова', email: 'client@workflow.local', role: 'client', status: 'active' },
-  { id: 'user-operator', name: 'Анна Морозова', email: 'operator@workflow.local', role: 'operator', status: 'active' },
-  { id: 'user-agent-1', name: 'Денис Фролов', email: 'agent@workflow.local', role: 'agent', status: 'active' },
-  { id: 'user-agent-2', name: 'Сергей Ким', email: 'sergey@workflow.local', role: 'agent', status: 'active' },
-  { id: 'user-admin', name: 'Алексей Власов', email: 'admin@workflow.local', role: 'admin', status: 'active' },
-  { id: 'user-inactive', name: 'Роман Юдин', email: 'inactive@workflow.local', role: 'agent', status: 'inactive' },
+  { id: 'user-client', name: 'Ирина Волкова', email: 'client@workflow.local', role: 'client', status: 'active', customerId: 'customer-northstar' },
+  { id: 'user-operator', name: 'Анна Морозова', email: 'operator@workflow.local', role: 'operator', status: 'active', customerId: null },
+  { id: 'user-agent-1', name: 'Денис Фролов', email: 'agent@workflow.local', role: 'agent', status: 'active', customerId: null },
+  { id: 'user-agent-2', name: 'Сергей Ким', email: 'sergey@workflow.local', role: 'agent', status: 'active', customerId: null },
+  { id: 'user-admin', name: 'Алексей Власов', email: 'admin@workflow.local', role: 'admin', status: 'active', customerId: null },
+  { id: 'user-inactive', name: 'Роман Юдин', email: 'inactive@workflow.local', role: 'agent', status: 'inactive', customerId: null },
 ]
 
 export const demoCustomers: CustomerSummary[] = [
