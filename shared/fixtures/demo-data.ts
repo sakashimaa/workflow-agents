@@ -1,4 +1,4 @@
-import type { CategorySummary, CustomerSummary, ServiceRequest, UserSummary } from '../types/domain'
+import type { CategorySummary, CustomerSummary, NotificationSummary, ServiceRequest, SlaPolicy, UserSummary } from '../types/domain'
 
 export const demoUsers: UserSummary[] = [
   { id: 'user-client', name: 'Ирина Волкова', email: 'client@workflow.local', role: 'client', status: 'active', customerId: 'customer-northstar' },
@@ -27,6 +27,19 @@ export const demoCategories: CategorySummary[] = [
   ['category-documents', 'Документы', 'Шаблоны и печатные формы'],
   ['category-settings', 'Настройки', 'Изменение конфигурации продукта'],
 ].map(([id, name, description]) => ({ id: id!, name: name!, description: description!, isActive: true }))
+
+export const demoSlaPolicies: SlaPolicy[] = [
+  ['critical', 15, 60],
+  ['high', 60, 240],
+  ['normal', 240, 1440],
+  ['low', 480, 4320],
+].map(([priority, responseMinutes, resolutionMinutes]) => ({ priority: priority as SlaPolicy['priority'], responseMinutes: Number(responseMinutes), resolutionMinutes: Number(resolutionMinutes), isActive: true, updatedAt: '2026-08-20T08:00:00.000Z' }))
+
+export const demoNotifications: Array<NotificationSummary & { userId: string }> = [
+  { id: 'notification-assignment', userId: 'user-agent-1', type: 'assignment', title: 'Назначена новая заявка', body: 'REQ-1041 · Настроить доступ новому сотруднику отдела', readAt: null, createdAt: '2026-08-20T10:52:00.000Z' },
+  { id: 'notification-sla', userId: 'user-operator', type: 'sla', title: 'Приближается срок SLA', body: 'Проверьте заявки с критическим приоритетом', readAt: null, createdAt: '2026-08-20T10:38:00.000Z' },
+  { id: 'notification-comment', userId: 'user-operator', type: 'comment', title: 'Клиент добавил комментарий', body: 'Новая информация в REQ-1042', readAt: '2026-08-20T11:00:00.000Z', createdAt: '2026-08-20T09:40:00.000Z' },
+]
 
 const requestSource = [
   ['REQ-1042', 'Не формируется отчёт по продажам за июль', 'in_progress', 'critical', 'Ирина Волкова', 'Northstar Retail', 'Анна Морозова', 'Отчётность'],

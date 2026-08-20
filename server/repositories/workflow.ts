@@ -4,6 +4,7 @@ import { canReadRequest } from '#shared/domain/request-access'
 import { hasVersionConflict } from '#shared/domain/version'
 import type { AuthUser, CategorySummary, CustomerSummary, PaginatedResponse, RequestComment, RequestPriority, RequestStatus, ServiceRequest, UserSummary } from '#shared/types/domain'
 import { getDatabase } from '../database/client'
+import { createNotification } from './operations'
 import { demoStore } from '../utils/demo-store'
 
 type DatabaseRow = Record<string, unknown>
@@ -195,6 +196,7 @@ export async function updateRequest(id: string, input: UpdateRequestInput, actor
     current.updatedAt = new Date().toISOString()
     current.version += 1
     current.timeline.push({ id: randomUUID(), title: 'Параметры заявки изменены', detail: actor.name, createdAt: current.updatedAt, kind: input.assigneeId !== undefined ? 'assignment' : 'status' })
+    if (assignee && assignee.id !== actor.id) await createNotification(assignee.id, 'assignment', 'Назначена новая заявка', `${current.id} · ${current.title}`)
     return current
   }
   await database.begin(async transaction => {
@@ -207,7 +209,9 @@ export async function updateRequest(id: string, input: UpdateRequestInput, actor
     await transaction`UPDATE requests SET updated_at = now(), version = version + 1 WHERE id = ${id}`
     await transaction`INSERT INTO request_events (id, request_id, actor_id, kind, title, detail) VALUES (${randomUUID()}, ${id}, ${actor.id}, ${input.assigneeId !== undefined ? 'assignment' : 'status'}, 'Параметры заявки изменены', ${actor.name})`
   })
-  return (await findRequest(id))!
+  const updated = (await findRequest(id))!
+  if (assignee && assignee.id !== actor.id) await createNotification(assignee.id, 'assignment', 'Назначена новая заявка', `${updated.id} · ${updated.title}`)
+  return updated
 }
 
 export async function transitionRequest(id: string, input: { to: RequestStatus; reason?: string; resolution?: string; expectedVersion?: number; undo?: boolean }, actor: AuthUser): Promise<ServiceRequest> {
@@ -223,6 +227,7 @@ export async function transitionRequest(id: string, input: { to: RequestStatus; 
     current.version += 1
     if (input.to === 'closed') current.closedAt = now
     current.timeline.push({ id: randomUUID(), actorId: actor.id, title: input.undo ? `Отмена: ${fromStatus} → ${input.to}` : `Статус: ${input.to}`, detail: input.reason || input.resolution || actor.name, createdAt: now, kind: input.to === 'escalated' ? 'escalation' : 'status', fromStatus, toStatus: input.to })
+    await notifyStatusChange(current, actor)
     return current
   }
   await database.begin(async transaction => {
@@ -231,7 +236,9 @@ export async function transitionRequest(id: string, input: { to: RequestStatus; 
     await transaction`UPDATE requests SET status = ${input.to}, waiting_reason = CASE WHEN ${input.to} = 'waiting' THEN ${input.reason ?? null} ELSE waiting_reason END, escalation_reason = CASE WHEN ${input.to} = 'escalated' THEN ${input.reason ?? null} ELSE escalation_reason END, resolution = CASE WHEN ${input.to} = 'resolved' THEN ${input.resolution ?? null} ELSE resolution END, closed_at = CASE WHEN ${input.to} = 'closed' THEN now() ELSE closed_at END, updated_at = now(), version = version + 1 WHERE id = ${id}`
     await transaction`INSERT INTO request_events (id, request_id, actor_id, kind, title, detail, from_status, to_status) VALUES (${randomUUID()}, ${id}, ${actor.id}, ${input.to === 'escalated' ? 'escalation' : 'status'}, ${input.undo ? `Отмена: ${fromStatus} → ${input.to}` : `Статус: ${input.to}`}, ${input.reason || input.resolution || actor.name}, ${fromStatus}, ${input.to})`
   })
-  return (await findRequest(id))!
+  const updated = (await findRequest(id))!
+  await notifyStatusChange(updated, actor)
+  return updated
 }
 
 export async function addRequestComment(request: ServiceRequest, body: string, actor: AuthUser): Promise<RequestComment> {
@@ -242,6 +249,7 @@ export async function addRequestComment(request: ServiceRequest, body: string, a
     request.comments.push(comment)
     request.timeline.push({ id: randomUUID(), title: 'Добавлен комментарий', detail: actor.name, createdAt: now, kind: 'comment' })
     request.updatedAt = now
+    if (request.assigneeId && request.assigneeId !== actor.id) await createNotification(request.assigneeId, 'comment', 'Новый комментарий', `${request.id} · ${request.title}`)
     return comment
   }
   await database.begin(async transaction => {
@@ -249,5 +257,14 @@ export async function addRequestComment(request: ServiceRequest, body: string, a
     await transaction`INSERT INTO request_events (id, request_id, actor_id, kind, title, detail, created_at) VALUES (${randomUUID()}, ${request.id}, ${actor.id}, 'comment', 'Добавлен комментарий', ${actor.name}, ${now})`
     await transaction`UPDATE requests SET updated_at = now() WHERE id = ${request.id}`
   })
+  if (request.assigneeId && request.assigneeId !== actor.id) await createNotification(request.assigneeId, 'comment', 'Новый комментарий', `${request.id} · ${request.title}`)
   return comment
+}
+
+async function notifyStatusChange(request: ServiceRequest, actor: AuthUser) {
+  const users = await listUsers({ ...actor, role: 'admin' })
+  const recipients = request.status === 'escalated'
+    ? users.filter(user => ['operator', 'admin'].includes(user.role))
+    : users.filter(user => user.role === 'client' && user.customerId === request.customerId)
+  await Promise.all(recipients.filter(user => user.id !== actor.id).map(user => createNotification(user.id, 'status', request.status === 'escalated' ? 'Заявка эскалирована' : 'Статус заявки изменён', `${request.id} · ${request.title}`)))
 }

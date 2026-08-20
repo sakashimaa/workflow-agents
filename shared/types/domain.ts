@@ -77,6 +77,45 @@ export interface CategorySummary {
   isActive: boolean
 }
 
+export interface AttachmentSummary {
+  id: string
+  requestId: string
+  filename: string
+  mimeType: string
+  size: number
+  url: string
+  uploadedBy: string
+  createdAt: string
+}
+
+export interface NotificationSummary {
+  id: string
+  type: 'assignment' | 'sla' | 'comment' | 'status'
+  title: string
+  body: string
+  readAt: string | null
+  createdAt: string
+}
+
+export interface SlaPolicy {
+  priority: RequestPriority
+  responseMinutes: number
+  resolutionMinutes: number
+  isActive: boolean
+  updatedAt: string
+}
+
+export interface AnalyticsSummary {
+  total: number
+  open: number
+  overdue: number
+  resolvedToday: number
+  slaCompliance: number
+  byStatus: Record<RequestStatus, number>
+  byPriority: Record<RequestPriority, number>
+  agentLoad: Array<{ id: string; name: string; open: number; status: UserSummary['status'] }>
+}
+
 export interface PaginationMeta {
   page: number
   pageSize: number
