@@ -1,7 +1,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-01-15',
   devtools: { enabled: true },
-  modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt'],
+  modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
   app: {
     head: {

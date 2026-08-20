@@ -95,7 +95,6 @@ const agents = computed(() => userData.value?.filter(user => user.role === 'agen
 useSeoMeta({ title: () => request.value?.title ?? 'Заявка' })
 const comments = ref<RequestComment[]>(request.value ? [...request.value.comments] : [])
 const commentBody = ref('')
-const commentPending = ref(false)
 const commentError = ref('')
 const mutationPending = ref<'priority' | 'status' | 'assignee' | 'undo' | null>(null)
 const mutationError = ref('')
@@ -212,9 +211,8 @@ async function undoLastChange() {
   }
 }
 
-async function addComment() {
-  if (!commentBody.value || !request.value || commentPending.value) return
-  commentPending.value = true
+const { pending: commentPending, run: runComment } = useSingleFlight(async () => {
+  if (!commentBody.value || !request.value) return
   commentError.value = ''
   try {
     const comment = await $fetch<RequestComment>(`/api/requests/${request.value.id}/comments`, { method: 'POST', body: { body: commentBody.value } })
@@ -222,9 +220,11 @@ async function addComment() {
     commentBody.value = ''
   } catch (error) {
     commentError.value = errorMessage(error, 'Не удалось отправить комментарий.')
-  } finally {
-    commentPending.value = false
   }
+})
+
+async function addComment() {
+  await runComment()
 }
 
 function errorMessage(error: unknown, fallback: string) {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { priorityRank } from '#shared/constants/requests'
+import { hasVersionConflict } from '#shared/domain/version'
 import type { AuthUser, CategorySummary, CustomerSummary, PaginatedResponse, RequestComment, RequestPriority, RequestStatus, ServiceRequest, UserSummary } from '#shared/types/domain'
 import { getDatabase } from '../database/client'
 import { demoStore } from '../utils/demo-store'
@@ -184,7 +185,7 @@ export async function createRequest(input: CreateRequestInput, actor: AuthUser):
 export async function updateRequest(id: string, input: UpdateRequestInput, actor: AuthUser): Promise<ServiceRequest> {
   const current = await findRequest(id)
   if (!current) throw createError({ statusCode: 404, statusMessage: 'Заявка не найдена' })
-  if (input.expectedVersion !== undefined && current.version !== input.expectedVersion) throw createError({ statusCode: 409, statusMessage: 'Заявка уже изменена другим пользователем' })
+  if (hasVersionConflict(current.version, input.expectedVersion)) throw createError({ statusCode: 409, statusMessage: 'Заявка уже изменена другим пользователем' })
 
   let assignee: UserSummary | null | undefined
   if (input.assigneeId !== undefined) {
@@ -221,7 +222,7 @@ export async function updateRequest(id: string, input: UpdateRequestInput, actor
 export async function transitionRequest(id: string, input: { to: RequestStatus; reason?: string; resolution?: string; expectedVersion?: number; undo?: boolean }, actor: AuthUser): Promise<ServiceRequest> {
   const current = await findRequest(id)
   if (!current) throw createError({ statusCode: 404, statusMessage: 'Заявка не найдена' })
-  if (input.expectedVersion !== undefined && current.version !== input.expectedVersion) throw createError({ statusCode: 409, statusMessage: 'Заявка уже изменена другим пользователем' })
+  if (hasVersionConflict(current.version, input.expectedVersion)) throw createError({ statusCode: 409, statusMessage: 'Заявка уже изменена другим пользователем' })
   const fromStatus = current.status
   const now = new Date().toISOString()
   const database = getDatabase()

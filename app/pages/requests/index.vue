@@ -69,6 +69,7 @@ const apiQuery = computed(() => ({
 
 const { data, status: requestStatus, error: requestError, refresh } = await useFetch('/api/requests', {
   query: apiQuery,
+  dedupe: 'cancel',
   transform: (response: RequestListApiResponse) => ({ ...response, data: response.data.map(normalizeRequest) }),
 })
 const { data: categoryData } = await useFetch<CategorySummary[]>('/api/categories')
