@@ -40,6 +40,7 @@ const navigation = [
   { to: '/tasks', label: 'Мои задачи', short: 'Задачи', icon: '✓', roles: ['operator', 'agent', 'admin'] },
   { to: '/customers', label: 'Клиенты', short: 'Клиенты', icon: '◉', roles: ['operator', 'admin'] },
   { to: '/notifications', label: 'Уведомления', short: 'События', icon: '◔', roles: ['client', 'operator', 'agent', 'admin'] },
+  { to: '/admin', label: 'Администрирование', short: 'Админ', icon: '⚙', roles: ['admin'] },
   { to: '/profile', label: 'Профиль', short: 'Профиль', icon: '♙', roles: ['client', 'operator', 'agent', 'admin'] },
 ]
 const preferences = usePreferencesStore()
