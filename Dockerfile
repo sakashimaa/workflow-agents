@@ -1,11 +1,11 @@
 FROM node:24-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM dependencies AS build
 COPY . .
-RUN npm run build
+RUN npm rebuild && npm run postinstall && npm run build
 
 FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \

@@ -26,3 +26,8 @@
 - URL-owned filters are restored from query parameters during SSR.
 - Interface preferences are hydrated from local storage.
 - Domain state is reloaded from the API and is never treated as Pinia-owned source of truth.
+# Найденные регрессии
+
+## Неполные auto-import types в Docker
+
+Первая multi-stage сборка запускала package `postinstall` в слое, где ещё не было исходников. `nuxt prepare` создавал неполный `.nuxt`, поэтому production typecheck не видел stores, composables и page macros. Dependency-слой теперь устанавливается с `--ignore-scripts`, а lifecycle scripts и `nuxt prepare` выполняются после копирования проекта. Ошибка воспроизводится только чистой контейнерной сборкой, поэтому Docker build остаётся обязательной release-проверкой.
