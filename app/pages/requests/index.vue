@@ -7,13 +7,18 @@
       <div><label for="priority" class="label">Приоритет</label><select id="priority" v-model="priority" class="field"><option value="">Все приоритеты</option><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select></div>
       <button type="button" class="button-secondary self-end" :disabled="!search && !status && !priority" @click="resetFilters">Сбросить</button>
     </section>
-    <div class="mt-5 flex items-center justify-between"><p class="text-sm text-slate-500"><strong class="text-slate-900">{{ filteredRequests.length }}</strong> заявок</p><select v-model="sort" class="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm"><option value="updated">Сначала обновлённые</option><option value="priority">По приоритету</option></select></div>
+    <div class="mt-5 flex items-center justify-between"><p class="text-sm text-slate-500"><strong class="text-slate-900">{{ meta.total }}</strong> заявок</p><select v-model="sort" class="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm"><option value="updated">Сначала обновлённые</option><option value="priority">По приоритету</option></select></div>
     <div class="mt-3">
-      <RequestSkeleton v-if="viewState === 'loading'" />
-      <StatePanel v-else-if="viewState === 'error'" kind="error" title="Не удалось загрузить заявки" description="Проверьте соединение и попробуйте ещё раз." action="Повторить" @action="retry" />
-      <StatePanel v-else-if="filteredRequests.length === 0" kind="empty" title="Заявки не найдены" description="Попробуйте изменить фильтры или создать новую заявку." action="Сбросить фильтры" @action="resetFilters" />
-      <div v-else class="space-y-3"><RequestCard v-for="request in filteredRequests" :key="request.id" :request="request" /></div>
+      <RequestSkeleton v-if="requestStatus === 'pending'" />
+      <StatePanel v-else-if="requestError" kind="error" title="Не удалось загрузить заявки" :description="requestError.statusMessage || 'Проверьте соединение и попробуйте ещё раз.'" action="Повторить" @action="refresh" />
+      <StatePanel v-else-if="requests.length === 0" kind="empty" title="Заявки не найдены" description="Попробуйте изменить фильтры или создать новую заявку." action="Сбросить фильтры" @action="resetFilters" />
+      <div v-else class="space-y-3"><RequestCard v-for="request in requests" :key="request.id" :request="request" /></div>
     </div>
+    <nav v-if="meta.pageCount > 1" class="mt-5 flex items-center justify-between" aria-label="Пагинация заявок">
+      <button type="button" class="button-secondary" :disabled="page <= 1 || requestStatus === 'pending'" @click="page--">← Назад</button>
+      <span class="text-sm font-semibold text-slate-500">Страница {{ page }} из {{ meta.pageCount }}</span>
+      <button type="button" class="button-secondary" :disabled="page >= meta.pageCount || requestStatus === 'pending'" @click="page++">Вперёд →</button>
+    </nav>
     <AppModal :open="modalOpen" title="Новая заявка" @close="modalOpen = false">
       <form class="space-y-4" @submit.prevent="createRequest">
         <div><label for="request-title" class="label">Тема</label><input id="request-title" v-model.trim="draftTitle" class="field" required maxlength="140" autofocus></div>
@@ -26,31 +31,46 @@
 </template>
 
 <script setup lang="ts">
-import { mockRequests, priorityLabels, statusLabels } from '~/data/requests'
-import type { RequestPriority, RequestStatus } from '~/types/request'
+import { priorityLabels, statusLabels } from '#shared/constants/requests'
+import { requestPriorities, requestStatuses, type PaginationMeta, type RequestPriority, type RequestStatus } from '#shared/types/domain'
+import { normalizeRequest, type RequestListApiResponse } from '~/domain/requests/api'
 
 useSeoMeta({ title: 'Заявки' })
 const route = useRoute()
-const search = ref('')
-const status = ref<RequestStatus | ''>('')
-const priority = ref<RequestPriority | ''>('')
-const sort = ref<'updated' | 'priority'>('updated')
+const router = useRouter()
+const routeValue = (name: string) => typeof route.query[name] === 'string' ? route.query[name] : ''
+const search = ref(routeValue('q'))
+const debouncedSearch = useDebouncedValue(search)
+const status = ref<RequestStatus | ''>(requestStatuses.includes(routeValue('status') as RequestStatus) ? routeValue('status') as RequestStatus : '')
+const priority = ref<RequestPriority | ''>(requestPriorities.includes(routeValue('priority') as RequestPriority) ? routeValue('priority') as RequestPriority : '')
+const sort = ref<'updated' | 'priority'>(routeValue('sort') === 'priority' ? 'priority' : 'updated')
+const page = ref(Math.max(1, Number.parseInt(routeValue('page')) || 1))
 const modalOpen = ref(route.query.create === '1')
 const draftTitle = ref('')
-const viewState = ref<'loading' | 'ready' | 'error'>('loading')
 
-onMounted(() => setTimeout(() => { viewState.value = route.query.demo === 'error' ? 'error' : 'ready' }, 450))
+const apiQuery = computed(() => ({
+  q: debouncedSearch.value || undefined,
+  status: status.value || undefined,
+  priority: priority.value || undefined,
+  sort: sort.value,
+  page: page.value,
+  pageSize: 6,
+  demo: ['delay', 'error', 'rate-limit', 'empty'].includes(routeValue('demo')) ? routeValue('demo') : undefined,
+}))
 
-const filteredRequests = computed(() => {
-  const priorityRank = { critical: 0, high: 1, normal: 2, low: 3 }
-  return mockRequests
-    .filter(item => !status.value || item.status === status.value)
-    .filter(item => !priority.value || item.priority === priority.value)
-    .filter(item => !search.value || `${item.id} ${item.title} ${item.customer} ${item.customerCompany}`.toLowerCase().includes(search.value.toLowerCase()))
-    .toSorted((a, b) => sort.value === 'priority' ? priorityRank[a.priority] - priorityRank[b.priority] : b.updatedAt.localeCompare(a.updatedAt))
+const { data, status: requestStatus, error: requestError, refresh } = await useFetch('/api/requests', {
+  query: apiQuery,
+  transform: (response: RequestListApiResponse) => ({ ...response, data: response.data.map(normalizeRequest) }),
+})
+const requests = computed(() => data.value?.data ?? [])
+const meta = computed<PaginationMeta>(() => data.value?.meta ?? { page: page.value, pageSize: 6, total: 0, pageCount: 1 })
+
+watch([debouncedSearch, status, priority, sort], () => { page.value = 1 })
+watch(apiQuery, (query) => {
+  const cleanQuery = Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined && value !== '' && value !== 1 && value !== 'updated'))
+  void router.replace({ query: cleanQuery })
 })
 
-function resetFilters() { search.value = ''; status.value = ''; priority.value = '' }
-function retry() { viewState.value = 'loading'; setTimeout(() => { viewState.value = 'ready' }, 500) }
+function resetFilters() { search.value = ''; status.value = ''; priority.value = ''; page.value = 1 }
 function createRequest() { modalOpen.value = false; draftTitle.value = '' }
 </script>

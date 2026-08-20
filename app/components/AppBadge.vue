@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import type { RequestPriority, RequestStatus } from '~/types/request'
+import type { RequestPriority, RequestStatus } from '#shared/types/domain'
 
 const props = defineProps<{ tone: RequestStatus | RequestPriority | 'success' | 'neutral' }>()
 

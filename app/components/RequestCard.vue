@@ -17,7 +17,7 @@
         <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
           <span>{{ request.customerCompany }}</span>
           <span>{{ request.assignee ?? 'Не назначена' }}</span>
-          <span>SLA: {{ request.slaDueAt }}</span>
+          <span>SLA: {{ formatDue(request.slaDueAt) }}</span>
         </div>
       </div>
       <span class="self-end text-slate-300 transition group-hover:translate-x-1 group-hover:text-indigo-500 sm:self-center" aria-hidden="true">→</span>
@@ -26,8 +26,13 @@
 </template>
 
 <script setup lang="ts">
-import { priorityLabels, statusLabels } from '~/data/requests'
-import type { ServiceRequest } from '~/types/request'
+import { priorityLabels, statusLabels } from '#shared/constants/requests'
+import type { ServiceRequest } from '#shared/types/domain'
 
 defineProps<{ request: ServiceRequest }>()
+
+function formatDue(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date)
+}
 </script>

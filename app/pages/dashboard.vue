@@ -15,9 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { mockRequests } from '~/data/requests'
+import type { PaginatedResponse, ServiceRequest } from '#shared/types/domain'
 useSeoMeta({ title: 'Обзор' })
-const urgentRequests = mockRequests.filter(item => ['critical', 'high'].includes(item.priority)).slice(0, 4)
+const { data } = await useFetch<PaginatedResponse<ServiceRequest>>('/api/requests', { query: { sort: 'priority', pageSize: 4 } })
+const urgentRequests = computed(() => data.value?.data ?? [])
 const stats = [
   { label: 'Открытые заявки', value: '24', delta: '+5', icon: '▤', tone: 'bg-indigo-50 text-indigo-700' },
   { label: 'Критические', value: '3', delta: '+1', icon: '!', tone: 'bg-rose-50 text-rose-700' },
